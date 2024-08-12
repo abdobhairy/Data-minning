@@ -1,0 +1,71 @@
+import pandas as pd
+from sklearn.impute import SimpleImputer
+from sklearn.preprocessing import StandardScaler, OneHotEncoder, MinMaxScaler
+from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
+from sklearn.model_selection import train_test_split
+from sklearn.decomposition import PCA
+from sklearn.feature_selection import SelectKBest, f_classif
+from sklearn.datasets import load_iris
+# إعداد كاجل API Key
+os.environ['KAGGLE_USERNAME'] = 'your_kaggle_username'
+os.environ['KAGGLE_KEY'] = 'your_kaggle_key'
+
+# تحميل البيانات من كاجل (مثال)
+data = load_iris(as_frame=True)
+df = data['frame']
+
+# فك ضغط الملف
+import zipfile
+with zipfile.ZipFile("wine-reviews.zip", 'r') as zip_ref:
+    zip_ref.extractall(".")
+
+# عرض أول خمس صفوف من البيانات
+print(data.head())
+
+# فصل البيانات إلى ميزات
+X = df.drop(columns=['target'])
+y = df['target']
+
+# تقسيم البيانات إلى مجموعات التدريب والاختبار
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# إنشاء Pipeline للميزات الفئوية
+categorical_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='most_frequent')),  # التعامل مع القيم المفقودة باستخدام القيمة الأكثر شيوعاً
+    ('onehot', OneHotEncoder(handle_unknown='ignore'))  # ترميز البيانات الفئوية باستخدام One-Hot Encoding
+])
+
+# إنشاء Pipeline للميزات العددية
+numeric_transformer = Pipeline(steps=[
+    ('imputer', SimpleImputer(strategy='mean')),  # التعامل مع القيم المفقودة باستخدام المتوسط
+    ('scaler', StandardScaler())  # التوحيد القياسي للبيانات العددية
+])
+
+# تحديد الميزات العددية والفئوية
+numeric_features = X.select_dtypes(include=['float64', 'int64']).columns
+categorical_features = X.select_dtypes(include=['object']).columns
+
+# دمج الأنابيب باستخدام ColumnTransformer
+preprocessor = ColumnTransformer(
+    transformers=[
+        ('num', numeric_transformer, numeric_features),
+        ('cat', categorical_transformer, categorical_features)
+    ])
+
+# إضافة خطوة PCA لتقليل الميزات
+pca = PCA(n_components=10)  # الاحتفاظ بأهم 10 ميزات
+
+# إنشاء Pipeline كاملة تتضمن المعالجة المسبقة وتقليل الميزات
+pipeline = Pipeline(steps=[
+    ('preprocessor', preprocessor),
+    ('pca', pca)
+])
+
+# تطبيق Pipeline على بيانات التدريب
+X_train_transformed = pipeline.fit_transform(X_train)
+X_test_transformed = pipeline.transform(X_test)
+
+# عرض أول خمس صفوف من البيانات المعالجة
+print(X_train_processed[:5])
+print(X_test_processed[:5]
